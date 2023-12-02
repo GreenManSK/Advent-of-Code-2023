@@ -1,6 +1,5 @@
 const fs = require("fs");
 
-// const dayNumber = process.argv[2] ?? new Date().getDate();
 const dayNumber = 6;
 const dayName = String(dayNumber).padStart(2, "0");
 const solutionPath = `${dayName}.js`;
