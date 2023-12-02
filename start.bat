@@ -1,0 +1,1 @@
+node .\helpers\create_day.js
