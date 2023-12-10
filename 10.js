@@ -1,6 +1,6 @@
 const { getInput } = require("./helpers/input-loader");
 const { Grid } = require("./helpers/grid");
-global.useTest = true;
+// global.useTest = true;
 
 const main = async () => {
   const grid = await getInput().then(prepareInput);
@@ -46,7 +46,7 @@ const parseLine = (line) => {
 
 const solve1 = (grid) => {
   const start = findStart(grid);
-  findStartShape(start, grid);
+  fixPipeShape(start, grid);
   start.distance = 0;
   let distance = 0;
 
@@ -67,67 +67,150 @@ const solve1 = (grid) => {
 };
 
 const solve2 = (grid) => {
-  let unknownEmpty;
-  do {
-    unknownEmpty = grid
-      .flat()
-      .find(({ isEmpty, isInside }) => isEmpty && isInside === undefined);
-    if (!unknownEmpty) break;
-    const currents = new Set([unknownEmpty]);
+  grid = blowUpGrid(grid);
 
-    const isOutside = [...currents.values()].some(
-      ({ isInside }) => isInside === false
-    );
-    currents.forEach((point) => (point.isInside = !isOutside));
-  } while (unknownEmpty);
-  return grid.flat().filter(({ isInside }) => isInside).length;
+  const empties = new Set(grid.flat().filter(({ isEmpty }) => isEmpty));
+  while (empties.size > 0) {
+    const [start] = empties;
+    const currents = new Set([start]);
+    const queue = [start];
+    while (queue.length) {
+      const current = queue.pop();
+      Grid.forEachNeighNoDiagonal(
+        grid,
+        [current.x, current.y],
+        ({ value: point, x, y }) => {
+          if (point.isEmpty) {
+            if (!currents.has(point)) {
+              queue.push(point);
+              currents.add(point);
+            }
+          }
+        }
+      );
+    }
+
+    const isOutside = [...currents].some((point) => point.isInside === false);
+    currents.forEach((point) => {
+      point.isInside = !isOutside;
+      empties.delete(point);
+    });
+  }
+  // printGrid(grid, true);
+  return grid
+    .flat()
+    .filter((point) => !point.isFake && point.isEmpty && point.isInside).length;
+};
+
+const blowUpGrid = (grid) => {
+  const newGrid = [];
+  const newHeight = grid.length * 2;
+  const newWidth = grid[0].length * 2;
+  for (let x = 0; x < newHeight; x++) {
+    newGrid[x] = [];
+    for (let y = 0; y < newWidth; y++) {
+      newGrid[x][y] = { x, y, isFake: true, isEmpty: true };
+    }
+  }
+
+  grid.flat().forEach((point) => {
+    const newX = point.x * 2;
+    const newY = point.y * 2;
+
+    newGrid[newX][newY] = {
+      ...point,
+      x: newX,
+      y: newY,
+      isEmpty: point.isEmpty || point.distance === undefined,
+    };
+  });
+
+  newGrid.flat().forEach((point) => {
+    if (point.isFake) {
+      fixPipeShape(point, newGrid);
+      point.isEmpty = point.pipe === undefined;
+    }
+    if (
+      point.x === 0 ||
+      point.y === 0 ||
+      point.x === newHeight - 1 ||
+      point.y === newWidth - 1
+    )
+      point.isInside = false;
+  });
+
+  return newGrid;
+};
+
+const printGrid = (grid, onlyReal = false) => {
+  console.log(
+    grid
+      .map((line) =>
+        line
+          .filter(({ isFake }) => !onlyReal || !isFake)
+          .map(({ pipe, isEmpty, isInside }) =>
+            pipe ? pipe : isEmpty ? (isInside ? "I" : "O") : "?"
+          )
+          .join("")
+      )
+      .filter((n) => n.length)
+      .join("\n")
+  );
 };
 
 const findStart = (grid) => {
   return grid.flat().find(({ isStart }) => isStart);
 };
 
-const findStartShape = (start, grid) => {
-  const connected = [];
+const fixPipeShape = (point, grid) => {
   let hasLeft = false,
     hasRight = false,
     hasTop = false,
     hasBottom = false;
-  Grid.forEachNeighNoDiagonal(grid, [start.x, start.y], ({ value, x, y }) => {
-    if (getConnections(value, grid).some(({ isStart }) => isStart)) {
-      if (x != start.x) {
-        // top bot
-        hasTop = x < start.x;
-        hasBottom = x > start.x;
+  Grid.forEachNeighNoDiagonal(grid, [point.x, point.y], ({ value, x, y }) => {
+    if (
+      getConnections(value, grid).some(
+        ({ x, y }) => x == point.x && y == point.y
+      )
+    ) {
+      if (x != point.x) {
+        if (x < point.x) {
+          hasTop = true;
+        } else {
+          hasBottom = true;
+        }
       } else {
-        hasLeft = y < start.y;
-        hasRight = y > start.y;
+        if (y < point.y) {
+          hasLeft = true;
+        } else {
+          hasRight = true;
+        }
       }
     }
   });
 
   if (hasLeft && hasRight) {
-    start.pipe = "-";
+    point.pipe = "-";
   }
 
   if (hasTop && hasBottom) {
-    start.pipe = "|";
+    point.pipe = "|";
   }
 
   if (hasTop && hasRight) {
-    start.pipe = "L";
+    point.pipe = "L";
   }
 
   if (hasLeft && hasTop) {
-    start.pipe = "J";
+    point.pipe = "J";
   }
 
   if (hasLeft && hasBottom) {
-    start.pipe = "R";
+    point.pipe = "R";
   }
 
   if (hasBottom && hasRight) {
-    start.pipe = "F";
+    point.pipe = "F";
   }
 };
 
