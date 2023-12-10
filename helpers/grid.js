@@ -8,19 +8,46 @@ const Grid = {
     }
   },
 
-  forEachNeigh: (grid, [x,y], callback) => {
+  forEachNeigh: (grid, [x, y], callback) => {
     for (let dx = -1; dx <= 1; dx++) {
       for (let dy = -1; dy <= 1; dy++) {
-        if (x + dx >= 0 && grid[x + dx] !== undefined && y + dy >= 0) {
+        const nx = +x + dx;
+        const ny = +y + dy;
+        if (Grid.isInGrid(grid, [nx, ny]) && (nx != x || ny != y)) {
           const ret = callback({
-            x: x + dx,
-            y: y + dy,
-            value: grid[x + dx][y + dy],
+            x: nx,
+            y: ny,
+            value: grid[nx][ny],
           });
           if (ret === true) return;
         }
       }
     }
+  },
+
+  forEachNeighNoDiagonal: (grid, [x, y], callback) => {
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        const nx = +x + dx;
+        const ny = +y + dy;
+        if (
+          (dx === 0 || dy === 0) &&
+          Grid.isInGrid(grid, [nx, ny]) &&
+          (nx != x || ny != y)
+        ) {
+          const ret = callback({
+            x: nx,
+            y: ny,
+            value: grid[nx][ny],
+          });
+          if (ret === true) return;
+        }
+      }
+    }
+  },
+
+  isInGrid: (grid, [x, y]) => {
+    return grid[x] && grid[x][y] !== undefined;
   },
 };
 
