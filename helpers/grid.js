@@ -49,6 +49,10 @@ const Grid = {
   isInGrid: (grid, [x, y]) => {
     return grid[x] && grid[x][y] !== undefined;
   },
+
+  printGrid: (pattern) => pattern.map((n) => n.join("")).join("\n"),
+
+  
 };
 
 module.exports = { Grid };
